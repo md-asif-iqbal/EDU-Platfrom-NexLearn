@@ -45,7 +45,7 @@ export default function Footer() {
               <span className="text-xl font-bold text-white">NexLearn</span>
             </Link>
             <p className="text-sm text-gray-400 leading-relaxed">
-              NexLearn is an AI-powered online tutoring platform that connects
+              NexLearn is an  online tutoring platform that connects
               students with expert tutors and provides intelligent learning
               tools. Your Next Level of Learning Starts Here.
             </p>

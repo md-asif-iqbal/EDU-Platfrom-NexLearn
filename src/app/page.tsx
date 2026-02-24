@@ -128,7 +128,7 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "How does NexLearn work?", a: "NexLearn connects students with expert tutors and provides AI-powered learning tools. Create a free account, browse courses or tutors, watch video lessons, and use AI tools for homework help, quiz practice, essay checking, and study planning." },
+  { q: "How does NexLearn work?", a: "NexLearn connects students with expert tutors and provides  learning tools. Create a free account, browse courses or tutors, watch video lessons, and use AI tools for homework help, quiz practice, essay checking, and study planning." },
   { q: "Is the AI homework helper free?", a: "Yes! Free users get 5 AI questions per day. Pro subscribers get unlimited access to AI Homework Helper and Quiz Generator. Premium subscribers get all AI tools including Study Planner and Essay Checker." },
   { q: "How do live tutoring sessions work?", a: "After booking a session with a tutor, you will receive a Jitsi Meet link for high-quality video call with screen sharing, chat, and whiteboard. Sessions are recorded for later review." },
   { q: "Can I become a tutor on NexLearn?", a: "Yes! Register as a tutor, complete your profile with qualifications and subjects, and start creating courses. Once verified by our admin team, students can discover and book sessions with you." },
@@ -159,7 +159,7 @@ export default function HomePage() {
           <div className="text-center max-w-4xl mx-auto">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
               <Badge className="mb-6 px-4 py-1.5 bg-blue-100 text-blue-700 border-0 text-sm">
-                <Sparkles className="w-4 h-4 mr-1" /> AI-Powered Learning Platform
+                <Sparkles className="w-4 h-4 mr-1" />  Learning Platform
               </Badge>
             </motion.div>
 

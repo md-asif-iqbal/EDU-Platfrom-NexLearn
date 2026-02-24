@@ -294,7 +294,7 @@ export default function CourseDetailPage() {
                           "Master core concepts and fundamentals",
                           "Build real-world projects",
                           "Practice with exercises and quizzes",
-                          "Get personalized AI-powered help",
+                          "Get personalized  help",
                           "Access live tutoring sessions",
                           "Earn a completion certificate",
                         ].map((item) => (

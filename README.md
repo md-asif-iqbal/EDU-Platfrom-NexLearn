@@ -5,7 +5,7 @@
 
 <!-- Animated Title -->
 <h1>
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=6366F1&center=true&vCenter=true&width=600&lines=⚡+NexLearn+Platform;AI-Powered+Tutoring;Learn+%7C+Grow+%7C+Succeed;Built+by+Asif+%F0%9F%9A%80" alt="Typing SVG" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=32&pause=1000&color=6366F1&center=true&vCenter=true&width=600&lines=⚡+NexLearn+Platform;+Tutoring;Learn+%7C+Grow+%7C+Succeed;Built+by+Asif+%F0%9F%9A%80" alt="Typing SVG" />
 </h1>
 
 <!-- Badges -->
@@ -30,7 +30,7 @@
 
 <br/>
 
-> **⚡ NexLearn** is a production-ready, full-stack AI-powered Online Tutoring Platform  
+> **⚡ NexLearn** is a production-ready, full-stack  Online Tutoring Platform  
 > connecting students with expert tutors through intelligent learning tools.
 
 <br/>

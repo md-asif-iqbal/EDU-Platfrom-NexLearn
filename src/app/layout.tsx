@@ -12,7 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "NexLearn — Your Next Level of Learning Starts Here",
   description:
-    "NexLearn is an AI-powered online tutoring platform. Connect with expert tutors, get AI homework help, generate quizzes, and create personalized study plans.",
+    "NexLearn is an  online tutoring platform. Connect with expert tutors, get AI homework help, generate quizzes, and create personalized study plans.",
   keywords: [
     "tutoring",
     "AI learning",
