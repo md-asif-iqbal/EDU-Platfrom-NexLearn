@@ -42,47 +42,39 @@ import {
   Sparkles,
 } from "lucide-react";
 
-function useCountUp(end: number, duration = 2000) {
+function StatCounter({ end, duration = 2000, format }: { end: number; duration?: number; format?: (n: number) => string }) {
   const [count, setCount] = useState(0);
-  const [hasStarted, setHasStarted] = useState(false);
-  const callbackRef = useRef<HTMLDivElement | null>(null);
-
-  const setRef = (node: HTMLDivElement | null) => {
-    callbackRef.current = node;
-  };
+  const divRef = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
 
   useEffect(() => {
-    if (!callbackRef.current || hasStarted) return;
+    const node = divRef.current;
+    if (!node) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setHasStarted(true);
-          observer.disconnect();
+        if (entry.isIntersecting && !started.current) {
+          started.current = true;
+          let current = 0;
+          const increment = end / (duration / 16);
+          const timer = setInterval(() => {
+            current += increment;
+            if (current >= end) {
+              setCount(end);
+              clearInterval(timer);
+            } else {
+              setCount(Math.floor(current));
+            }
+          }, 16);
         }
       },
       { threshold: 0.1 }
     );
-    observer.observe(callbackRef.current);
+    observer.observe(node);
     return () => observer.disconnect();
-  }, [hasStarted]);
+  }, [end, duration]);
 
-  useEffect(() => {
-    if (!hasStarted) return;
-    let start = 0;
-    const increment = end / (duration / 16);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {
-        setCount(end);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(start));
-      }
-    }, 16);
-    return () => clearInterval(timer);
-  }, [hasStarted, end, duration]);
-
-  return { count, ref: setRef };
+  const display = format ? format(count) : String(count);
+  return <div ref={divRef} className="text-4xl font-bold">{display}</div>;
 }
 
 const fadeInUp = {
@@ -152,10 +144,6 @@ const plans = [
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const stat1 = useCountUp(10000);
-  const stat2 = useCountUp(500);
-  const stat3 = useCountUp(50);
-  const stat4 = useCountUp(49);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-950">
@@ -163,7 +151,7 @@ export default function HomePage() {
 
       {/* ===== HERO ===== */}
       <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-amber-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900" />
+        <div className="absolute inset-0 bg-linear-to-br from-blue-50 via-purple-50 to-amber-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900" />
         <div className="absolute top-20 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-pulse" />
 
@@ -177,7 +165,7 @@ export default function HomePage() {
 
             <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="text-5xl sm:text-6xl lg:text-7xl font-bold leading-tight mb-6">
               Your Next Level of{" "}
-              <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-amber-500 bg-clip-text text-transparent">Learning</span>{" "}
+              <span className="bg-linear-to-r from-blue-600 via-purple-600 to-amber-500 bg-clip-text text-transparent">Learning</span>{" "}
               Starts Here
             </motion.h1>
 
@@ -190,14 +178,14 @@ export default function HomePage() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input type="text" placeholder="Search courses, subjects, or tutors..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 pr-4 py-6 text-lg rounded-2xl border-2 border-gray-200 focus:border-blue-500 bg-white shadow-lg" />
                 <Link href={`/courses?search=${searchQuery}`}>
-                  <Button className="absolute right-2 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl px-6">Search</Button>
+                  <Button className="absolute right-2 top-1/2 -translate-y-1/2 bg-linear-to-r from-blue-600 to-purple-600 text-white rounded-xl px-6">Search</Button>
                 </Link>
               </div>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.4 }} className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link href="/tutors">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-6 text-lg rounded-xl hover:opacity-90">
+                <Button size="lg" className="bg-linear-to-r from-blue-600 to-purple-600 text-white px-8 py-6 text-lg rounded-xl hover:opacity-90">
                   Find a Tutor <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
@@ -227,23 +215,23 @@ export default function HomePage() {
       </section>
 
       {/* ===== STATS BAR ===== */}
-      <section className="py-12 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-12 bg-linear-to-r from-blue-600 to-purple-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-white text-center">
-            <div ref={stat1.ref}>
-              <p className="text-4xl font-bold">{stat1.count.toLocaleString()}+</p>
+            <div>
+              <StatCounter end={10000} format={(n) => n.toLocaleString() + "+"} />
               <p className="text-blue-100 mt-1">Active Students</p>
             </div>
-            <div ref={stat2.ref}>
-              <p className="text-4xl font-bold">{stat2.count}+</p>
+            <div>
+              <StatCounter end={500} format={(n) => n + "+"} />
               <p className="text-blue-100 mt-1">Expert Tutors</p>
             </div>
-            <div ref={stat3.ref}>
-              <p className="text-4xl font-bold">{stat3.count}+</p>
+            <div>
+              <StatCounter end={50} format={(n) => n + "+"} />
               <p className="text-blue-100 mt-1">Subjects</p>
             </div>
-            <div ref={stat4.ref}>
-              <p className="text-4xl font-bold">{(stat4.count / 10).toFixed(1)}</p>
+            <div>
+              <StatCounter end={49} format={(n) => (n / 10).toFixed(1)} />
               <p className="text-blue-100 mt-1">Average Rating</p>
             </div>
           </div>
@@ -267,7 +255,7 @@ export default function HomePage() {
               <motion.div key={item.step} variants={fadeInUp}>
                 <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
                   <CardContent className="p-8 text-center">
-                    <div className={`w-16 h-16 mx-auto mb-6 bg-gradient-to-br ${item.color} rounded-2xl flex items-center justify-center`}>
+                    <div className={`w-16 h-16 mx-auto mb-6 bg-linear-to-br ${item.color} rounded-2xl flex items-center justify-center`}>
                       <item.icon className="w-8 h-8 text-white" />
                     </div>
                     <span className="text-6xl font-bold text-gray-100 dark:text-gray-800 absolute top-4 right-4">{item.step}</span>
@@ -295,7 +283,7 @@ export default function HomePage() {
                 <Link href={`/courses?subject=${subject.name}`}>
                   <Card className="group border-0 shadow-md hover:shadow-xl transition-all duration-300 hover:-translate-y-2 cursor-pointer">
                     <CardContent className="p-6 text-center">
-                      <div className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-br ${subject.color} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                      <div className={`w-16 h-16 mx-auto mb-4 bg-linear-to-br ${subject.color} rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
                         <subject.icon className="w-8 h-8 text-white" />
                       </div>
                       <h3 className="font-semibold text-lg">{subject.name}</h3>
@@ -328,7 +316,7 @@ export default function HomePage() {
                     {course.thumbnail ? (
                       <Image src={course.thumbnail} alt={course.title} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <div className="w-full h-full bg-linear-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                         <BookOpen className="w-12 h-12 text-blue-300" />
                       </div>
                     )}
@@ -346,7 +334,7 @@ export default function HomePage() {
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t">
                       <span className="text-lg font-bold text-blue-600">৳{course.price}</span>
-                      <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">Enroll</Button>
+                      <Button size="sm" className="bg-linear-to-r from-blue-600 to-purple-600 text-white">Enroll</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -374,7 +362,7 @@ export default function HomePage() {
                       {tutor.avatar ? (
                         <Image src={tutor.avatar} alt={tutor.name} width={80} height={80} className="object-cover w-full h-full" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                        <div className="w-full h-full bg-linear-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
                           {tutor.name.charAt(0)}
                         </div>
                       )}
@@ -392,7 +380,7 @@ export default function HomePage() {
                     <div className="flex items-center justify-between pt-4 border-t">
                       <span className="font-semibold text-blue-600">৳{tutor.rate}/hr</span>
                       <Link href="/tutors">
-                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">Book</Button>
+                        <Button size="sm" className="bg-linear-to-r from-blue-600 to-purple-600 text-white">Book</Button>
                       </Link>
                     </div>
                   </CardContent>
@@ -404,7 +392,7 @@ export default function HomePage() {
       </section>
 
       {/* ===== AI FEATURES ===== */}
-      <section className="py-24 bg-gradient-to-br from-gray-900 to-blue-900 text-white">
+      <section className="py-24 bg-linear-to-br from-gray-900 to-blue-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }} className="text-center mb-16">
             <Badge className="mb-4 bg-blue-800 text-blue-200 border-0"><Sparkles className="w-4 h-4 mr-1" /> Powered by AI</Badge>
@@ -421,7 +409,7 @@ export default function HomePage() {
               <motion.div key={feature.title} variants={fadeInUp}>
                 <Card className="bg-white/10 backdrop-blur-sm border-white/10 hover:bg-white/15 transition-all duration-300 hover:-translate-y-1 h-full">
                   <CardContent className="p-6">
-                    <div className={`w-14 h-14 mb-4 bg-gradient-to-br ${feature.gradient} rounded-2xl flex items-center justify-center`}>
+                    <div className={`w-14 h-14 mb-4 bg-linear-to-br ${feature.gradient} rounded-2xl flex items-center justify-center`}>
                       <feature.icon className="w-7 h-7 text-white" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
@@ -463,7 +451,7 @@ export default function HomePage() {
                         {typeof t.avatar === "string" && t.avatar.startsWith("http") ? (
                           <Image src={t.avatar} alt={t.name} width={48} height={48} className="object-cover w-full h-full" />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">{typeof t.avatar === "string" ? t.avatar : "?"}</div>
+                          <div className="w-full h-full bg-linear-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold">{typeof t.avatar === "string" ? t.avatar : "?"}</div>
                         )}
                       </div>
                       <div>
@@ -493,7 +481,7 @@ export default function HomePage() {
                 <Card className={`relative border-0 shadow-lg h-full ${plan.popular ? "ring-2 ring-blue-600 shadow-xl scale-105" : ""}`}>
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0 px-4 py-1">Most Popular</Badge>
+                      <Badge className="bg-linear-to-r from-blue-600 to-purple-600 text-white border-0 px-4 py-1">Most Popular</Badge>
                     </div>
                   )}
                   <CardContent className="p-8">
@@ -506,7 +494,7 @@ export default function HomePage() {
                       {plan.features.map((f) => (<li key={f} className="flex items-center gap-2 text-sm"><Check className="w-4 h-4 text-green-500 shrink-0" />{f}</li>))}
                     </ul>
                     <Link href={plan.href} className="w-full">
-                      <Button className={`w-full py-6 ${plan.popular ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white" : ""}`} variant={plan.popular ? "default" : "outline"}>{plan.cta}</Button>
+                      <Button className={`w-full py-6 ${plan.popular ? "bg-linear-to-r from-blue-600 to-purple-600 text-white" : ""}`} variant={plan.popular ? "default" : "outline"}>{plan.cta}</Button>
                     </Link>
                   </CardContent>
                 </Card>
@@ -537,7 +525,7 @@ export default function HomePage() {
       </section>
 
       {/* ===== CTA BANNER ===== */}
-      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600">
+      <section className="py-24 bg-linear-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div variants={fadeInUp} initial="hidden" whileInView="visible" viewport={{ once: true }}>
             <h2 className="text-4xl sm:text-5xl font-bold text-white mb-6">Ready to Start Learning?</h2>
