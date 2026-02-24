@@ -264,28 +264,36 @@ export default function RegisterPage() {
     try {
       // Step 1: Firebase popup
       const result = await signInWithPopup(auth, googleProvider);
-      const idToken = await result.user.getIdToken();
+      const { uid, email, displayName, photoURL } = result.user;
 
-      // Step 2: Upsert in MongoDB (role defaults to "student" for Google signup)
+      // Step 2: HMAC-SHA256(uid:email) via Web Crypto
+      const secret = process.env.NEXT_PUBLIC_NEXTAUTH_HMAC_SECRET || "nexlearn-hmac";
+      const enc = new TextEncoder();
+      const key = await window.crypto.subtle.importKey(
+        "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+      );
+      const sigBuf = await window.crypto.subtle.sign("HMAC", key, enc.encode(`${uid}:${email}`));
+      const sig = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, "0")).join("");
+
+      // Step 3: Upsert in MongoDB
       const res = await fetch("/api/auth/firebase-google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, role: role || "student" }),
+        body: JSON.stringify({ uid, email, name: displayName, picture: photoURL, role: role || "student", sig }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Google sign-up failed");
 
-      // Step 3: NextAuth session via firebase-google provider
+      // Step 4: NextAuth session
       const signInResult = await signIn("firebase-google", {
-        idToken,
-        role: role || "student",
+        uid, email, name: displayName, picture: photoURL,
+        role: role || "student", sig,
         redirect: false,
       });
       if (signInResult?.error) throw new Error(signInResult.error);
 
       toast.success(`Account created! Welcome, ${data.user?.name?.split(" ")[0] || ""}! 🎉`);
-      const dashboardPath =
-        data.user?.role === "tutor" ? "/tutor" : "/student";
+      const dashboardPath = data.user?.role === "tutor" ? "/tutor" : "/student";
       router.push(dashboardPath);
       router.refresh();
     } catch (err: unknown) {

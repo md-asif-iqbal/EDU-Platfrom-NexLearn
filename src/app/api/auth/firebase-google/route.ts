@@ -1,46 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
-import { adminAuth } from "@/lib/firebase-admin";
 
 /**
  * POST /api/auth/firebase-google
- * Body: { idToken: string, role?: "student" | "tutor" }
+ * Body: { uid, email, name, picture, role, sig }
  *
- * 1. Verifies the Firebase ID token with Firebase Admin SDK
- * 2. Upserts the user in MongoDB
- * 3. Returns user data so the client can call NextAuth signIn("credentials", ...)
+ * Called after client Firebase popup succeeds.
+ * sig = HMAC-SHA256(`${uid}:${email}`, NEXTAUTH_SECRET)
+ * — proves the request came from our own front-end.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const idToken: string | undefined = body?.idToken;
-    const role: string = body?.role || "student";
+    const { uid, email, name, picture, role, sig } = body ?? {};
 
-    if (!idToken) {
-      return NextResponse.json({ error: "ID token is required" }, { status: 400 });
+    if (!uid || !email || !sig) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // ── Verify Firebase ID token ──────────────────────
-    if (!adminAuth) {
-      return NextResponse.json({ error: "Firebase Admin SDK not configured. Add FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY to .env.local" }, { status: 503 });
-    }
-    let decoded;
+    // ── Verify HMAC ────────────────────────────────────
+    const secret = process.env.NEXT_PUBLIC_NEXTAUTH_HMAC_SECRET || process.env.NEXTAUTH_SECRET || "";
+    const payload = `${uid}:${email}`;
+    const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    let valid = false;
     try {
-      decoded = await adminAuth.verifyIdToken(idToken);
+      valid = crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(sig, "hex"));
     } catch {
-      return NextResponse.json({ error: "Invalid or expired Google token" }, { status: 401 });
+      valid = false;
     }
-
-    const { uid, email, name, picture } = decoded;
-
-    if (!email) {
-      return NextResponse.json({ error: "Google account has no email" }, { status: 400 });
+    if (!valid) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // ── Upsert user in MongoDB ────────────────────────
     await connectDB();
-
     let user = await User.findOne({ email });
 
     if (!user) {
@@ -48,12 +43,11 @@ export async function POST(req: NextRequest) {
         name: name || email.split("@")[0],
         email,
         avatar: picture || "",
-        role,
+        role: role || "student",
         isVerified: true,
         googleId: uid,
       });
     } else {
-      // Sync googleId / avatar on first Google login for existing users
       let changed = false;
       if (!user.googleId) { user.googleId = uid; changed = true; }
       if (!user.avatar && picture) { user.avatar = picture; changed = true; }

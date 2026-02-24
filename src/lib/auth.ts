@@ -1,34 +1,46 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
-import { adminAuth } from "@/lib/firebase-admin";
+
+// Verify the HMAC signature sent from the client after Firebase popup
+function verifyGooglePayload(payload: string, sig: string): boolean {
+  const secret = process.env.NEXT_PUBLIC_NEXTAUTH_HMAC_SECRET || process.env.NEXTAUTH_SECRET || "";
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(sig, "hex"));
+  } catch {
+    return false;
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    // ── Firebase Google token provider ──────────────
-    // Called after client-side Firebase Google sign-in
+    // ── Firebase Google provider (no Admin SDK needed) ──
+    // Client does Firebase popup → gets uid/email/name/picture
+    // Signs payload with NEXTAUTH_SECRET HMAC → sends here
     CredentialsProvider({
       id: "firebase-google",
       name: "Google (Firebase)",
       credentials: {
-        idToken: { label: "Firebase ID Token", type: "text" },
-        role: { label: "Role", type: "text" },
+        uid:     { label: "UID",     type: "text" },
+        email:   { label: "Email",   type: "text" },
+        name:    { label: "Name",    type: "text" },
+        picture: { label: "Picture", type: "text" },
+        role:    { label: "Role",    type: "text" },
+        sig:     { label: "Sig",     type: "text" },
       },
       async authorize(credentials) {
-        if (!credentials?.idToken) throw new Error("No token provided");
+        const { uid, email, name, picture, role, sig } = credentials ?? {};
+        if (!uid || !email || !sig) throw new Error("Missing Google credentials");
 
-        if (!adminAuth) throw new Error("Firebase Admin is not configured on this server");
-        let decoded;
-        try {
-          decoded = await adminAuth.verifyIdToken(credentials.idToken);
-        } catch {
-          throw new Error("Invalid or expired Google token");
+        // Verify HMAC so only our own client can use this provider
+        const payload = `${uid}:${email}`;
+        if (!verifyGooglePayload(payload, sig)) {
+          throw new Error("Invalid Google sign-in signature");
         }
-
-        const { uid, email, name, picture } = decoded;
-        if (!email) throw new Error("Google account has no email");
 
         await connectDB();
         let user = await User.findOne({ email });
@@ -38,7 +50,7 @@ export const authOptions: NextAuthOptions = {
             name: name || email.split("@")[0],
             email,
             avatar: picture || "",
-            role: credentials.role || "student",
+            role: role || "student",
             isVerified: true,
             googleId: uid,
           });
