@@ -1,20 +1,67 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
+import { adminAuth } from "@/lib/firebase-admin";
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [
-          GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          }),
-        ]
-      : []),
+    // ── Firebase Google token provider ──────────────
+    // Called after client-side Firebase Google sign-in
+    CredentialsProvider({
+      id: "firebase-google",
+      name: "Google (Firebase)",
+      credentials: {
+        idToken: { label: "Firebase ID Token", type: "text" },
+        role: { label: "Role", type: "text" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.idToken) throw new Error("No token provided");
+
+        if (!adminAuth) throw new Error("Firebase Admin is not configured on this server");
+        let decoded;
+        try {
+          decoded = await adminAuth.verifyIdToken(credentials.idToken);
+        } catch {
+          throw new Error("Invalid or expired Google token");
+        }
+
+        const { uid, email, name, picture } = decoded;
+        if (!email) throw new Error("Google account has no email");
+
+        await connectDB();
+        let user = await User.findOne({ email });
+
+        if (!user) {
+          user = await User.create({
+            name: name || email.split("@")[0],
+            email,
+            avatar: picture || "",
+            role: credentials.role || "student",
+            isVerified: true,
+            googleId: uid,
+          });
+        } else {
+          let changed = false;
+          if (!user.googleId) { user.googleId = uid; changed = true; }
+          if (!user.avatar && picture) { user.avatar = picture; changed = true; }
+          if (!user.isVerified) { user.isVerified = true; changed = true; }
+          if (changed) await user.save();
+        }
+
+        return {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          image: user.avatar,
+          role: user.role,
+          isVerified: user.isVerified,
+        };
+      },
+    }),
+
+    // ── Email / Password provider ───────────────────
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -61,30 +108,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google") {
-        await connectDB();
-        const existingUser = await User.findOne({ email: user.email });
-
-        if (!existingUser) {
-          const newUser = await User.create({
-            name: user.name,
-            email: user.email,
-            avatar: user.image || "",
-            role: "student",
-            isVerified: true,
-          });
-          user.role = "student";
-          user.isVerified = true;
-          user.id = newUser._id.toString();
-        } else {
-          user.role = existingUser.role;
-          user.isVerified = existingUser.isVerified;
-          user.id = existingUser._id.toString();
-        }
-      }
-      return true;
-    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;

@@ -29,6 +29,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { auth, googleProvider, signInWithPopup } from "@/lib/firebase";
 
 const subjects = [
   "Mathematics", "Physics", "Chemistry", "Biology",
@@ -261,9 +262,37 @@ export default function RegisterPage() {
   const handleGoogleSignup = async () => {
     setIsGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/student" });
-    } catch {
-      toast.error("Google sign-up failed. Please try again.");
+      // Step 1: Firebase popup
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      // Step 2: Upsert in MongoDB (role defaults to "student" for Google signup)
+      const res = await fetch("/api/auth/firebase-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, role: role || "student" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Google sign-up failed");
+
+      // Step 3: NextAuth session via firebase-google provider
+      const signInResult = await signIn("firebase-google", {
+        idToken,
+        role: role || "student",
+        redirect: false,
+      });
+      if (signInResult?.error) throw new Error(signInResult.error);
+
+      toast.success(`Account created! Welcome, ${data.user?.name?.split(" ")[0] || ""}! 🎉`);
+      const dashboardPath =
+        data.user?.role === "tutor" ? "/tutor" : "/student";
+      router.push(dashboardPath);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Google sign-up failed";
+      if (!msg.includes("popup-closed") && !msg.includes("cancelled")) {
+        toast.error(msg);
+      }
       setIsGoogleLoading(false);
     }
   };

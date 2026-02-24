@@ -64,6 +64,11 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    googleId: {
+      type: String,
+      default: "",
+      index: { sparse: true },
+    },
   },
   {
     timestamps: true,

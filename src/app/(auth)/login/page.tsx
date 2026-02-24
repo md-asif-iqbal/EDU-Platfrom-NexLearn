@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Zap, Mail, Lock, Eye, EyeOff, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { auth, googleProvider, signInWithPopup } from "@/lib/firebase";
 
 function FieldError({ msg }: { msg?: string }) {
   if (!msg) return null;
@@ -132,9 +133,39 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl: "/" });
-    } catch {
-      toast.error("Google sign-in failed. Please try again.");
+      // Step 1: Firebase popup sign-in
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      // Step 2: Create/upsert user in MongoDB via our API
+      const res = await fetch("/api/auth/firebase-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Google sign-in failed");
+
+      // Step 3: Create NextAuth JWT session using firebase-google credentials provider
+      const signInResult = await signIn("firebase-google", {
+        idToken,
+        redirect: false,
+      });
+
+      if (signInResult?.error) throw new Error(signInResult.error);
+
+      toast.success(`Welcome back, ${data.user?.name?.split(" ")[0] || ""}! 🎉`);
+      const dashboardPath =
+        data.user?.role === "admin" ? "/admin" :
+        data.user?.role === "tutor" ? "/tutor" : "/student";
+      router.push(dashboardPath);
+      router.refresh();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Google sign-in failed";
+      // Ignore popup-closed-by-user
+      if (!msg.includes("popup-closed") && !msg.includes("cancelled")) {
+        toast.error(msg);
+      }
       setIsGoogleLoading(false);
     }
   };

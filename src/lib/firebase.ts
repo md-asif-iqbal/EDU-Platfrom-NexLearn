@@ -1,5 +1,11 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getStorage } from "firebase/storage";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,6 +19,9 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const storage = getStorage(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
-export { app, storage };
+export { app, storage, auth, googleProvider, signInWithPopup, firebaseSignOut };
 export default app;
